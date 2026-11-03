@@ -5,12 +5,13 @@ using systemforstudent.Services;
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
 
-IDataStorage storage = new InMemoryDataStorage();
+// Використовуємо файлове JSON-сховище замість пам'яті
+IDataStorage storage = new JsonDataStorage();
 StudyService service = new StudyService(storage);
 
 while (true)
 {
-    Console.WriteLine("\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 1) ===");
+    Console.WriteLine("\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 1: JSON) ===");
     Console.WriteLine("1. Список студентів");
     Console.WriteLine("2. Список предметів");
     Console.WriteLine("3. Список викладачів");
