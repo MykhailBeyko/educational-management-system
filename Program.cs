@@ -1,27 +1,31 @@
 using System.Text;
 using systemforstudent.Persistence;
 using systemforstudent.Services;
+using systemforstudent.Services.Scales;
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.InputEncoding = Encoding.UTF8;
 
-// Використовуємо файлове JSON-сховище замість пам'яті
 IDataStorage storage = new JsonDataStorage();
 StudyService service = new StudyService(storage);
 
 while (true)
 {
-    Console.WriteLine("\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 1: JSON) ===");
+    Console.WriteLine($"\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 2) ===");
+    Console.WriteLine($"Поточна шкала оцінювання: {service.ActiveScale.Name}");
+    Console.WriteLine("-----------------------------------------------------");
     Console.WriteLine("1. Список студентів");
     Console.WriteLine("2. Список предметів");
     Console.WriteLine("3. Список викладачів");
     Console.WriteLine("4. Призначити предмет студенту");
     Console.WriteLine("5. Список предметів студента");
-    Console.WriteLine("6. Додати оцінку студенту");
+    Console.WriteLine("6. Додати оцінку студенту (автовизначення літери + валідація)");
     Console.WriteLine("7. Список оцінок студента з конкретного предмету");
     Console.WriteLine("8. Редагувати оцінку");
     Console.WriteLine("9. Видалити оцінку");
     Console.WriteLine("10. Всі поточні оцінки в системі");
+    Console.WriteLine("11. Середній бал студента (по предмету / за семестр / загальний)");
+    Console.WriteLine("12. Змінити шкалу оцінювання");
     Console.WriteLine("0. Вихід");
     Console.Write("Оберіть пункт меню: ");
 
@@ -60,6 +64,12 @@ while (true)
         case "10":
             ShowAllGrades(service);
             break;
+        case "11":
+            ShowAverageScores(service);
+            break;
+        case "12":
+            ChangeScale(service);
+            break;
         case "0":
             Console.WriteLine("Завершення роботи програми.");
             return;
@@ -72,8 +82,7 @@ while (true)
 static void ShowStudents(StudyService service)
 {
     Console.WriteLine("--- Список студентів ---");
-    var students = service.GetAllStudents();
-    foreach (var s in students)
+    foreach (var s in service.GetAllStudents())
     {
         Console.WriteLine(s);
     }
@@ -82,8 +91,7 @@ static void ShowStudents(StudyService service)
 static void ShowSubjects(StudyService service)
 {
     Console.WriteLine("--- Список предметів ---");
-    var subjects = service.GetAllSubjects();
-    foreach (var sub in subjects)
+    foreach (var sub in service.GetAllSubjects())
     {
         Console.WriteLine(sub);
     }
@@ -92,8 +100,7 @@ static void ShowSubjects(StudyService service)
 static void ShowTeachers(StudyService service)
 {
     Console.WriteLine("--- Список викладачів ---");
-    var teachers = service.GetAllTeachers();
-    foreach (var t in teachers)
+    foreach (var t in service.GetAllTeachers())
     {
         Console.WriteLine(t);
     }
@@ -104,19 +111,11 @@ static void AssignSubject(StudyService service)
     Console.WriteLine("--- Призначення предмету студенту ---");
     ShowStudents(service);
     Console.Write("Введіть ID студента: ");
-    if (!int.TryParse(Console.ReadLine(), out int studentId))
-    {
-        Console.WriteLine("Некоректний ID.");
-        return;
-    }
+    if (!int.TryParse(Console.ReadLine(), out int studentId)) return;
 
     ShowSubjects(service);
     Console.Write("Введіть ID предмету: ");
-    if (!int.TryParse(Console.ReadLine(), out int subjectId))
-    {
-        Console.WriteLine("Некоректний ID.");
-        return;
-    }
+    if (!int.TryParse(Console.ReadLine(), out int subjectId)) return;
 
     bool success = service.AssignSubjectToStudent(studentId, subjectId);
     if (success)
@@ -133,11 +132,7 @@ static void ShowStudentSubjects(StudyService service)
 {
     Console.WriteLine("--- Предмети студента ---");
     Console.Write("Введіть ID студента: ");
-    if (!int.TryParse(Console.ReadLine(), out int studentId))
-    {
-        Console.WriteLine("Некоректний ID.");
-        return;
-    }
+    if (!int.TryParse(Console.ReadLine(), out int studentId)) return;
 
     var student = service.GetStudentById(studentId);
     if (student == null)
@@ -179,17 +174,15 @@ static void AddGrade(StudyService service)
     Console.Write("Введіть числову оцінку (0-100): ");
     if (!int.TryParse(Console.ReadLine(), out int numericValue)) return;
 
-    Console.Write("Введіть літерну оцінку (A, B, C, D, E, F): ");
-    string letterGrade = Console.ReadLine()?.Trim().ToUpper() ?? "F";
-
-    var grade = service.AddGrade(studentId, subjectId, teacherId, numericValue, letterGrade);
-    if (grade != null)
+    var result = service.AddGrade(studentId, subjectId, teacherId, numericValue);
+    if (result.Success && result.Grade != null)
     {
-        Console.WriteLine($"Оцінку успішно додано! ID оцінки: {grade.Id}");
+        Console.WriteLine($"Успіх! {result.Message}");
+        Console.WriteLine($"Зафіксовано: {result.Grade}");
     }
     else
     {
-        Console.WriteLine("Помилка при додаванні оцінки. Перевірте введені ID.");
+        Console.WriteLine($"Помилка валідації: {result.Message}");
     }
 }
 
@@ -223,21 +216,11 @@ static void EditGrade(StudyService service)
     Console.Write("Введіть ID оцінки для редагування: ");
     if (!int.TryParse(Console.ReadLine(), out int gradeId)) return;
 
-    Console.Write("Нова числова оцінка: ");
+    Console.Write("Нова числова оцінка (0-100): ");
     if (!int.TryParse(Console.ReadLine(), out int newNumeric)) return;
 
-    Console.Write("Нова літерна оцінка: ");
-    string newLetter = Console.ReadLine()?.Trim().ToUpper() ?? "F";
-
-    bool success = service.UpdateGrade(gradeId, newNumeric, newLetter);
-    if (success)
-    {
-        Console.WriteLine("Оцінку успішно оновлено!");
-    }
-    else
-    {
-        Console.WriteLine("Оцінку з таким ID не знайдено.");
-    }
+    var result = service.UpdateGrade(gradeId, newNumeric);
+    Console.WriteLine(result.Message);
 }
 
 static void DeleteGrade(StudyService service)
@@ -271,6 +254,109 @@ static void ShowAllGrades(StudyService service)
         foreach (var g in grades)
         {
             Console.WriteLine(g);
+        }
+    }
+}
+
+static void ShowAverageScores(StudyService service)
+{
+    Console.WriteLine("--- Розрахунок середнього балу ---");
+    ShowStudents(service);
+    Console.Write("Введіть ID студента: ");
+    if (!int.TryParse(Console.ReadLine(), out int studentId)) return;
+
+    var student = service.GetStudentById(studentId);
+    if (student == null)
+    {
+        Console.WriteLine("Студента не знайдено.");
+        return;
+    }
+
+    Console.WriteLine("1. Середній бал по конкретному предмету");
+    Console.WriteLine("2. Середній бал за семестр");
+    Console.WriteLine("3. Загальний середній бал за весь час");
+    Console.Write("Вибір: ");
+    string? subChoice = Console.ReadLine();
+
+    switch (subChoice)
+    {
+        case "1":
+            ShowSubjects(service);
+            Console.Write("Введіть ID предмету: ");
+            if (int.TryParse(Console.ReadLine(), out int subjectId))
+            {
+                var avg = service.GetStudentSubjectAverage(studentId, subjectId);
+                Console.WriteLine(avg.HasValue ? $"Середній бал: {avg.Value}" : "Оцінок з цього предмету немає.");
+            }
+            break;
+        case "2":
+            Console.Write("Введіть номер семестру (1, 2, ...): ");
+            if (int.TryParse(Console.ReadLine(), out int semester))
+            {
+                var avg = service.GetStudentSemesterAverage(studentId, semester);
+                Console.WriteLine(avg.HasValue ? $"Середній бал за {semester}-й семестр: {avg.Value}" : "Оцінок за цей семестр немає.");
+            }
+            break;
+        case "3":
+            var overall = service.GetStudentOverallAverage(studentId);
+            Console.WriteLine(overall.HasValue ? $"Загальний середній бал: {overall.Value}" : "Оцінок немає.");
+            break;
+    }
+}
+
+static void ChangeScale(StudyService service)
+{
+    Console.WriteLine("--- Вибір шкали оцінювання ---");
+    Console.WriteLine("1. ECTS (A, B, C, D, E, Fx, F)");
+    Console.WriteLine("2. Національна шкала (Відмінно, Добре, Задовільно, Незадовільно)");
+    Console.WriteLine("3. Ввести власну шкалу");
+    Console.Write("Оберіть шкалу: ");
+    string? ch = Console.ReadLine();
+
+    if (ch == "1")
+    {
+        service.ActiveScale = new EctsGradeScale();
+        Console.WriteLine("Встановлено шкалу ECTS.");
+    }
+    else if (ch == "2")
+    {
+        service.ActiveScale = new TraditionalGradeScale();
+        Console.WriteLine("Встановлено Національну шкалу.");
+    }
+    else if (ch == "3")
+    {
+        Console.Write("Назва нової шкали (наприклад, Залік): ");
+        string name = Console.ReadLine()?.Trim() ?? "Власна шкала";
+        if (string.IsNullOrEmpty(name)) name = "Власна шкала";
+
+        var rules = new List<(int MinScore, string Label)>();
+        Console.WriteLine("Вводьте пороги (від мінімального балу до літери/оцінки). Натисніть Enter на порожній назві, щоб завершити.");
+
+        while (true)
+        {
+            Console.Write("Позначка (наприклад A, 5, Зараховано): ");
+            string? label = Console.ReadLine()?.Trim();
+            if (string.IsNullOrEmpty(label)) break;
+
+            Console.Write($"Мінімальний бал для \"{label}\": ");
+            if (int.TryParse(Console.ReadLine(), out int minScore))
+            {
+                rules.Add((minScore, label));
+            }
+            else
+            {
+                Console.WriteLine("Некоректне число, спробуйте ще раз.");
+            }
+        }
+
+        if (rules.Count > 0)
+        {
+            service.ActiveScale = new CustomGradeScale(name, rules);
+            Console.WriteLine($"Встановлено власну шкалу: {name}");
+        }
+        else
+        {
+            Console.WriteLine("Не додано жодного правила, шкалу не змінено.");
         }
     }
 }
