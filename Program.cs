@@ -8,12 +8,13 @@ Console.InputEncoding = Encoding.UTF8;
 
 IDataStorage storage = new JsonDataStorage();
 StudyService service = new StudyService(storage);
+ReportingService reporting = new ReportingService(storage);
 
 while (true)
 {
-    Console.WriteLine($"\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 2) ===");
+    Console.WriteLine($"\n=== СИСТЕМА УПРАВЛІННЯ НАВЧАЛЬНИМ ПРОЦЕСОМ (Етап 3: Звіти) ===");
     Console.WriteLine($"Поточна шкала оцінювання: {service.ActiveScale.Name}");
-    Console.WriteLine("-----------------------------------------------------");
+    Console.WriteLine("-----------------------------------------------------------");
     Console.WriteLine("1. Список студентів");
     Console.WriteLine("2. Список предметів");
     Console.WriteLine("3. Список викладачів");
@@ -26,6 +27,7 @@ while (true)
     Console.WriteLine("10. Всі поточні оцінки в системі");
     Console.WriteLine("11. Середній бал студента (по предмету / за семестр / загальний)");
     Console.WriteLine("12. Змінити шкалу оцінювання");
+    Console.WriteLine("13. Звіти та аналітика (Табель, статистика групи/викладача/кафедри)");
     Console.WriteLine("0. Вихід");
     Console.Write("Оберіть пункт меню: ");
 
@@ -69,6 +71,9 @@ while (true)
             break;
         case "12":
             ChangeScale(service);
+            break;
+        case "13":
+            ShowReportsMenu(service, reporting);
             break;
         case "0":
             Console.WriteLine("Завершення роботи програми.");
@@ -358,5 +363,57 @@ static void ChangeScale(StudyService service)
         {
             Console.WriteLine("Не додано жодного правила, шкалу не змінено.");
         }
+    }
+}
+
+static void ShowReportsMenu(StudyService service, ReportingService reporting)
+{
+    Console.WriteLine("--- МЕНЮ ЗВІТІВ ТА АНАЛІТИКИ ---");
+    Console.WriteLine("1. Посеместровий табель успішності студента");
+    Console.WriteLine("2. Підсумкова таблиця за всі семестри (за роком і семестром)");
+    Console.WriteLine("3. Статистика по академічній групі");
+    Console.WriteLine("4. Звіт для викладача за семестр");
+    Console.WriteLine("5. Звіт для завідувача кафедри");
+    Console.Write("Оберіть тип звіту: ");
+    string? rChoice = Console.ReadLine();
+
+    switch (rChoice)
+    {
+        case "1":
+            ShowStudents(service);
+            Console.Write("Введіть ID студента: ");
+            if (!int.TryParse(Console.ReadLine(), out int sId)) return;
+            Console.Write("Введіть семестр: ");
+            if (!int.TryParse(Console.ReadLine(), out int sem)) return;
+            reporting.PrintStudentSemesterReport(sId, sem);
+            break;
+        case "2":
+            ShowStudents(service);
+            Console.Write("Введіть ID студента: ");
+            if (!int.TryParse(Console.ReadLine(), out int stId)) return;
+            reporting.PrintStudentFullAcademicReport(stId);
+            break;
+        case "3":
+            Console.Write("Введіть шифр групи (наприклад, ІПЗ-21): ");
+            string? grp = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(grp)) return;
+            Console.Write("Введіть семестр: ");
+            if (!int.TryParse(Console.ReadLine(), out int grpSem)) return;
+            reporting.PrintGroupStatistics(grp.Trim(), grpSem);
+            break;
+        case "4":
+            ShowTeachers(service);
+            Console.Write("Введіть ID викладача: ");
+            if (!int.TryParse(Console.ReadLine(), out int tId)) return;
+            Console.Write("Введіть семестр: ");
+            if (!int.TryParse(Console.ReadLine(), out int tSem)) return;
+            reporting.PrintTeacherReport(tId, tSem);
+            break;
+        case "5":
+            Console.Write("Введіть назву кафедри (наприклад, Інформаційні технології): ");
+            string? dep = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(dep)) return;
+            reporting.PrintDepartmentReport(dep.Trim());
+            break;
     }
 }
