@@ -38,7 +38,6 @@ public class JsonDataStorage : IDataStorage
             Departments = this.Departments,
             Groups = this.Groups
         };
-
         string json = JsonSerializer.Serialize(container, _jsonOptions);
         File.WriteAllText(_filePath, json);
     }
@@ -56,7 +55,7 @@ public class JsonDataStorage : IDataStorage
         {
             string json = File.ReadAllText(_filePath);
             var container = JsonSerializer.Deserialize<StorageContainer>(json, _jsonOptions);
-            if (container != null && container.Students?.Count > 0)
+            if (container != null)
             {
                 Students = container.Students ?? new List<Student>();
                 Teachers = container.Teachers ?? new List<Teacher>();
@@ -64,7 +63,29 @@ public class JsonDataStorage : IDataStorage
                 Grades = container.Grades ?? new List<Grade>();
                 Departments = container.Departments ?? new List<Department>();
                 Groups = container.Groups ?? new List<string>();
+                // Після читання JSON відновлюємо посилання на спільні екземпляри.
+                foreach (var student in Students)
+                {
+                    student.Subjects = student.Subjects.Select(s => Subjects.Single(x => x.Id == s.Id)).ToList();
+                }
 
+                foreach (var teacher in Teachers)
+                {
+                    teacher.Subjects = teacher.Subjects.Select(s => Subjects.Single(x => x.Id == s.Id)).ToList();
+                }
+
+                foreach (var department in Departments)
+                {
+                    department.Teachers = Teachers.Where(t => t.Department.Equals(department.Name, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                }
+
+                foreach (var grade in Grades)
+                {
+                    grade.Student = Students.Single(s => s.Id == grade.Student.Id);
+                    grade.Teacher = Teachers.Single(t => t.Id == grade.Teacher.Id);
+                    grade.Subject = Subjects.Single(s => s.Id == grade.Subject.Id);
+                }
                 // Синхронізація груп, якщо раніше зберігалися тільки студенти
                 foreach (var stGroup in Students.Select(s => s.Group).Distinct())
                 {
@@ -82,14 +103,12 @@ public class JsonDataStorage : IDataStorage
             }
             else
             {
-                SeedInitialData();
-                Save();
+                throw new InvalidDataException("Файл даних порожній або має неправильний формат.");
             }
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            SeedInitialData();
-            Save();
+            throw new InvalidDataException("Не вдалося прочитати дані. Оригінальний файл збережено.", ex);
         }
     }
 

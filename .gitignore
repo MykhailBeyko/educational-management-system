@@ -6,3 +6,7 @@ obj/
 .idea/
 _future_steps/
 data.json
+*.db
+*.db-shm
+*.db-wal
+reports/

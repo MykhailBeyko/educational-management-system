@@ -9,7 +9,13 @@
 
   <ItemGroup>
     <Compile Remove="_future_steps\**" />
+    <Compile Remove="Tests\**" />
     <None Remove="_future_steps\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 
 </Project>

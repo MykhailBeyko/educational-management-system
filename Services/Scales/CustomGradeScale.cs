@@ -3,6 +3,7 @@ namespace systemforstudent.Services.Scales;
 public class CustomGradeScale : IGradeScale
 {
     public string Name { get; }
+
     private readonly List<(int MinScore, string Label)> _rules;
 
     public CustomGradeScale(string name, List<(int MinScore, string Label)> rules)
@@ -16,8 +17,11 @@ public class CustomGradeScale : IGradeScale
         foreach (var rule in _rules)
         {
             if (score >= rule.MinScore)
+            {
                 return rule.Label;
+            }
         }
+
         return "F";
     }
 }
